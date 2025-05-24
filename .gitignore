@@ -1,0 +1,6 @@
+venv/
+.venv/
+o_venv/
+.env
+t_venv/
+.env
