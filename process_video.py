@@ -105,9 +105,9 @@ def process_youtube_video(url):
             translated_text = translate_to_english(cleaned_text)
             logging.info(f"Translation completed: {translated_text[:100]}...")
 
-            facts = "facts", "facts" #summarize_transcript(translated_text)
-            theme, _ = "theme", "theme" #extract_theme(title, description, translated_text)
-            keywords = "keywords", "keywords" #extract_keywords_from_text(translated_text)
+            facts = summarize_transcript(translated_text)
+            theme, _ = extract_theme(title, description, translated_text)
+            keywords = extract_keywords_from_text(translated_text)
 
             csv_file_path = os.path.join(OUTPUT_DIR, CSV_FILENAME)
             file_exists = os.path.isfile(csv_file_path)
