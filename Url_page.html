@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Transcript Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">YouTube Transcript Processor</h1>
+        <div class="space-y-4">
+            <div>
+                <label for="youtube-url" class="block text-sm font-medium text-gray-700">YouTube URL</label>
+                <input
+                    type="text"
+                    id="youtube-url"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID)"
+                />
+            </div>
+            <button
+                onclick="processURL()"
+                class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+                Process Video
+            </button>
+            <div id="status" class="text-sm text-gray-600 mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        async function processURL() {
+            const urlInput = document.getElementById('youtube-url').value;
+            const statusDiv = document.getElementById('status');
+
+            if (!urlInput) {
+                statusDiv.innerHTML = '<span class="text-red-500">Please enter a valid YouTube URL.</span>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<span class="text-blue-500">Processing...</span>';
+
+            try {
+                const response = await fetch('/process_url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: urlInput }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusDiv.innerHTML = `<span class="text-green-500">${result.message}</span>`;
+                } else {
+                    statusDiv.innerHTML = `<span class="text-red-500">Error: ${result.error}</span>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="text-red-500">Failed to process URL: ${error.message}</span>`;
+            }
+        }
+    </script>
