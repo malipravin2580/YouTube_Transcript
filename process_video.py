@@ -78,7 +78,7 @@ def process_youtube_video(url):
     # Check for duplicates
     if check_video_processed(video_id):
         logging.info(f"Video {video_id} already processed, skipping.")
-        return
+        return f"Video {video_id} already processed"
 
     try:
         title, description, channel_name, duration = get_video_metadata(video_id)

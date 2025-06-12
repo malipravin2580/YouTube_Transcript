@@ -101,7 +101,12 @@ async def process_url(request: URLRequest):
         # Process the YouTube URL
         result = process_youtube_video(url)
         
-        if result is None:
+        if result in ["already_processed","Video already processed"]:
+            return {
+                "message": "This video has already been processed. Check the output_data directory for results.",
+                "status": "already_processed"
+            }
+        elif result is None:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to process video. Please check if the video is available and try again."
