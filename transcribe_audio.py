@@ -313,80 +313,144 @@ def summarize_transcript_fallback(text, max_facts=5, max_length=200):
         return ""
 
 def extract_theme(title, description, transcript):
-    combined_text = f"{title} {description} {transcript}".lower()
+    """
+    Extract the main theme and related keywords from the video content using GPT-4.
+    The theme is dynamically determined based on the actual content rather than predefined categories.
     
-    themes = {
-        "Agricultural Education": [
-            "agriculture", "farming", "crop", "irrigation", "farmer", "cultivation",
-            "harvest", "soil", "seeds", "fertilizer", "pesticide", "organic",
-            "sustainable", "agricultural show", "agricultural program",
-            "crop insurance", "farmer welfare", "agricultural community",
-            "agricultural knowledge"
-        ],
-        "UPSC Preparation": [
-            "upsc", "civil service", "ias", "prelims", "mains", "exam",
-            "preparation", "study", "current affairs", "general studies",
-            "optional subject", "interview", "coaching", "mock test"
-        ],
-        "Environmental Studies": [
-            "environment", "ecology", "climate", "conservation", "biodiversity",
-            "sustainability", "pollution", "renewable energy", "climate change",
-            "wildlife", "forest", "natural resources"
-        ],
-        "Programming": [
-            "python", "django", "coding", "programming", "software", "development",
-            "web", "application", "database", "algorithm", "debug", "code",
-            "framework", "api"
-        ],
-        "General Education": [
-            "learn", "course", "tutorial", "education", "teaching", "learning",
-            "study", "knowledge", "skill", "training", "workshop", "seminar", "lecture"
-        ]
-    }
+    Args:
+        title (str): Video title
+        description (str): Video description
+        transcript (str): Video transcript
     
-    stopwords = {
-        'this', 'that', 'with', 'from', 'have', 'they', 'will', 'about', 'very',
-        'video', 'welcome', 'please', 'subscribe', "channel", "like", "share",
-        'today', 'going', 'know', 'think', 'just', 'make', 'want', 'need',
-        'good', 'great', 'nice', 'well', 'much', 'many', 'lot', 'really',
-        'actually', 'basically', 'literally'
-    }
-    
-    theme = "General Education"
-    max_matches = 0
-    for theme_name, keywords in themes.items():
-        matches = sum(1 for keyword in keywords if keyword in combined_text)
-        if matches > max_matches:
-            max_matches = matches
-            theme = theme_name
-    
-    keyword_scores = {}
-    words = re.findall(r'\b[\w]{4,}\b', combined_text, re.UNICODE)
-    word_counts = Counter(word for word in words if word not in stopwords)
-    
-    for word, count in word_counts.items():
-        score = count
-        context_patterns = [
-            r'\b(important|key|main|primary|essential|critical)\s+\w+\s+' + word,
-            r'\b' + word + r'\s+(program|scheme|initiative|project|system)',
-            r'\b(learn|understand|know|study)\s+about\s+' + word,
-            r'\b' + word + r'\s+(development|improvement|enhancement|advancement)'
-        ]
-        for pattern in context_patterns:
-            if re.search(pattern, combined_text, re.IGNORECASE):
-                score += 2
-        if any(word in theme_keywords for theme_keywords in themes.values()):
-            score += 3
-        keyword_scores[word] = score
-    
-    top_keywords = sorted(keyword_scores.items(), key=lambda x: x[1], reverse=True)
-    keywords = ', '.join(word for word, score in top_keywords[:15])
-    
-    for keyword in themes.get(theme, []):
-        if keyword not in keywords and keyword in combined_text:
-            keywords += f", {keyword}"
-    
-    return theme, keywords[:500]
+    Returns:
+        tuple: (main_theme, related_keywords)
+    """
+    try:
+        combined_text = f"Title: {title}\nDescription: {description}\nTranscript: {transcript}"
+        
+        prompt = f"""
+        Analyze the following video content and:
+        1. Identify the main theme/topic (be specific and descriptive)
+        2. Extract 15 most relevant keywords that represent the core concepts
+        Focus on the actual content and context, not just surface-level categorization.
+        
+        Content:
+        {combined_text[:4000]}
+        
+        Return the response in this format:
+        THEME: [specific theme description]
+        KEYWORDS: [comma-separated keywords]
+        """
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert content analyzer. Your task is to identify the main theme "
+                        "and extract relevant keywords from video content. Be specific and descriptive "
+                        "in identifying themes, focusing on the actual content rather than broad categories. "
+                        "Consider the context, tone, and specific topics discussed."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        # Parse the response
+        theme = ""
+        keywords = ""
+        
+        for line in result.split('\n'):
+            if line.startswith('THEME:'):
+                theme = line.replace('THEME:', '').strip()
+            elif line.startswith('KEYWORDS:'):
+                keywords = line.replace('KEYWORDS:', '').strip()
+        
+        if not theme or not keywords:
+            logging.warning("Failed to extract theme or keywords, falling back to basic analysis")
+            return extract_theme_fallback(title, description, transcript)
+            
+        logging.info(f"Extracted theme: {theme}")
+        logging.info(f"Extracted keywords: {keywords}")
+        
+        return theme, keywords[:500]
+        
+    except Exception as e:
+        logging.error(f"Error in theme extraction: {str(e)}")
+        return extract_theme_fallback(title, description, transcript)
+
+def extract_theme_fallback(title, description, transcript):
+    """
+    Fallback method for theme extraction using basic text analysis.
+    """
+    try:
+        combined_text = f"{title} {description} {transcript}".lower()
+        
+        # Common context indicators
+        context_indicators = {
+            'agriculture': ['crop', 'farmer', 'farming', 'agriculture', 'harvest', 'soil', 'irrigation'],
+            'education': ['learn', 'study', 'education', 'course', 'training', 'workshop'],
+            'technology': ['software', 'programming', 'computer', 'digital', 'online', 'app'],
+            'business': ['business', 'market', 'finance', 'investment', 'company', 'startup'],
+            'health': ['health', 'medical', 'disease', 'treatment', 'doctor', 'hospital'],
+            'environment': ['environment', 'climate', 'pollution', 'conservation', 'sustainable'],
+            'social': ['community', 'society', 'people', 'social', 'development', 'welfare']
+        }
+        
+        # Score each context based on keyword presence and context
+        context_scores = {}
+        for context, keywords in context_indicators.items():
+            score = 0
+            for keyword in keywords:
+                # Basic keyword match
+                if keyword in combined_text:
+                    score += 1
+                # Context-based scoring
+                patterns = [
+                    rf'\b(important|key|main|primary|essential|critical)\s+\w+\s+{keyword}',
+                    rf'\b{keyword}\s+(program|scheme|initiative|project|system)',
+                    rf'\b(learn|understand|know|study)\s+about\s+{keyword}',
+                    rf'\b{keyword}\s+(development|improvement|enhancement|advancement)'
+                ]
+                for pattern in patterns:
+                    if re.search(pattern, combined_text):
+                        score += 2
+            context_scores[context] = score
+        
+        # Get the highest scoring context
+        main_context = max(context_scores.items(), key=lambda x: x[1])[0]
+        
+        # Extract relevant keywords
+        words = re.findall(r'\b[\w]{4,}\b', combined_text)
+        word_scores = Counter()
+        
+        for word in words:
+            if word not in {'this', 'that', 'with', 'from', 'have', 'they', 'will', 'about', 'very',
+                          'video', 'welcome', 'please', 'subscribe', 'channel', 'like', 'share'}:
+                word_scores[word] += 1
+                
+                # Boost score for words related to main context
+                if any(keyword in word for keyword in context_indicators[main_context]):
+                    word_scores[word] += 2
+        
+        # Get top keywords
+        top_keywords = sorted(word_scores.items(), key=lambda x: x[1], reverse=True)
+        keywords = ', '.join(word for word, score in top_keywords[:15])
+        
+        # Create a descriptive theme
+        theme = f"{main_context.title()} - {', '.join(keywords.split(', ')[:3])}"
+        
+        return theme, keywords[:500]
+        
+    except Exception as e:
+        logging.error(f"Error in fallback theme extraction: {str(e)}")
+        return "General Content", "content, video, information"
 
 def extract_keywords_from_text(text, max_keywords=15):
     try:

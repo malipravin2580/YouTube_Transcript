@@ -64,7 +64,7 @@ async def get_home():
                 statusDiv.innerHTML = '<span class="text-blue-500">Processing...</span>';
 
                 try {
-                    const response = await fetch('/process_url', {
+                    const response = await fetch('/process_url/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ async def get_home():
     </html>
     """
 
-@app.post("/process_url")
+@app.post("/process_url/")
 async def process_url(request: URLRequest):
     try:
         url = request.url.strip()
