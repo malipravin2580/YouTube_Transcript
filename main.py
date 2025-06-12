@@ -9,15 +9,6 @@ import uvicorn
 
 app = FastAPI(title="YouTube Transcript Processor")
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('youtube_transcript_processor.log'),
-        logging.StreamHandler()
-    ]
-)
 
 # Create output directories
 os.makedirs('output_data', exist_ok=True)
@@ -26,7 +17,7 @@ os.makedirs('output_data/audio_files', exist_ok=True)
 class URLRequest(BaseModel):
     url: str
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/transcript_url/", response_class=HTMLResponse)
 async def get_home():
     return """
     <!DOCTYPE html>

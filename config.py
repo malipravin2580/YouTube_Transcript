@@ -9,15 +9,6 @@ DetectorFactory.seed = 0
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('youtube_transcript_processor.log'),
-        logging.StreamHandler()
-    ]
-)
 
 # Configuration
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')

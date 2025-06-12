@@ -67,14 +67,26 @@ def transcribe_audio(audio_path, metadata_language):
                         logging.warning(f"Language {detected_language_code} not supported by Whisper, falling back to English")
                         detected_language_code = 'en'
 
-                    # Reset file pointer and transcribe in detected language
+                    # Reset file pointer and try transcription with detected language
                     audio_file.seek(0)
-                    transcription_response = openai_client.audio.transcriptions.create(
-                        model="whisper-1",
-                        file=audio_file,
-                        language=detected_language_code
-                    )
-                    transcribed_text = transcription_response.text
+                    try:
+                        transcription_response = openai_client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=audio_file,
+                            language=detected_language_code
+                        )
+                        transcribed_text = transcription_response.text
+                    except Exception as e:
+                        if "unsupported_language" in str(e) or "400" in str(e):
+                            logging.warning(f"Error with {detected_language_code} transcription, trying without language specification")
+                            audio_file.seek(0)
+                            transcription_response = openai_client.audio.transcriptions.create(
+                                model="whisper-1",
+                                file=audio_file
+                            )
+                            transcribed_text = transcription_response.text
+                        else:
+                            raise
                     
                     # Verify transcription language
                     try:
@@ -88,7 +100,7 @@ def transcribe_audio(audio_path, metadata_language):
                     return transcribed_text, detected_language_code, duration_seconds
                     
                 except Exception as e:
-                    if "unsupported_language" in str(e):
+                    if "unsupported_language" in str(e) or "400" in str(e):
                         logging.warning(f"Language not supported, falling back to English transcription")
                         audio_file.seek(0)
                         response = openai_client.audio.transcriptions.create(
@@ -153,11 +165,22 @@ def transcribe_audio(audio_path, metadata_language):
             for chunk_path in chunks:
                 try:
                     with open(chunk_path, 'rb') as chunk_file:
-                        response = openai_client.audio.transcriptions.create(
-                            model="whisper-1",
-                            file=chunk_file,
-                            language=detected_language_code
-                        )
+                        try:
+                            response = openai_client.audio.transcriptions.create(
+                                model="whisper-1",
+                                file=chunk_file,
+                                language=detected_language_code
+                            )
+                        except Exception as e:
+                            if "unsupported_language" in str(e) or "400" in str(e):
+                                logging.warning(f"Error with {detected_language_code} transcription for chunk, trying without language specification")
+                                chunk_file.seek(0)
+                                response = openai_client.audio.transcriptions.create(
+                                    model="whisper-1",
+                                    file=chunk_file
+                                )
+                            else:
+                                raise
                     transcribed_texts.append(response.text)
                     os.remove(chunk_path)
                 except Exception as e:
